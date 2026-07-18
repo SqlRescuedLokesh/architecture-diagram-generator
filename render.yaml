@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: architecture-diagram-generator
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-6
+      - key: MONTHLY_BUDGET_USD
+        value: "20"
+      - key: FIXED_MONTHLY_COST_USD
+        value: "8" # ~$7 Render Starter + ~$1/mo amortized domain
+      - key: VITE_RAZORPAY_PAYMENT_LINK
+        sync: false # your Razorpay Payment Link URL; leave unset to hide the button
+    # After the service is live, add your custom domain from the Render
+    # dashboard (Settings > Custom Domains) and point its DNS at Render.

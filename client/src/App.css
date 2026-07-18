@@ -1,0 +1,263 @@
+:root {
+  color-scheme: light;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #201f1e;
+}
+
+.app-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.app-header h1 {
+  font-size: 24px;
+  margin: 0 0 6px;
+}
+
+.app-header p {
+  margin: 0 0 20px;
+  color: #605e5c;
+}
+
+.support-btn {
+  flex: none;
+  display: inline-block;
+  background: #ffb900;
+  color: #201f1e;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 18px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.support-btn:hover {
+  background: #e8a800;
+}
+
+.prompt-section textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.generate-btn {
+  background: #0078d4;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.generate-btn:disabled {
+  background: #a19f9d;
+  cursor: default;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar button {
+  background: #fff;
+  border: 1px solid #8a8886;
+  padding: 9px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar button:disabled {
+  color: #c8c6c4;
+  border-color: #edebe9;
+  cursor: default;
+}
+
+.error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fde7e9;
+  border: 1px solid #a4262c;
+  color: #a4262c;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.diagram-section {
+  margin-top: 24px;
+}
+
+.diagram-scroll {
+  overflow: auto;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.placeholder {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a19f9d;
+  border: 1px dashed #d1d1d1;
+  border-radius: 6px;
+}
+
+.flow-legend {
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.flow-legend h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.flow-legend ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flow-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+.flow-legend-badge {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #107c10;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usage-stats {
+  margin-top: 24px;
+  padding: 16px 20px;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: 13.5px;
+}
+
+.usage-stats h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.usage-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.usage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.usage-stat-label {
+  color: #605e5c;
+  font-size: 12px;
+}
+
+.usage-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.usage-stats-footnote {
+  margin: 14px 0 0;
+  color: #605e5c;
+  font-size: 11.5px;
+}
+
+.usage-stats-error {
+  color: #a4262c;
+}
+
+.usage-budget {
+  margin-top: 16px;
+}
+
+.usage-budget-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.usage-budget-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #edebe9;
+  overflow: hidden;
+}
+
+.usage-budget-bar-fill {
+  height: 100%;
+  background: #0078d4;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.usage-budget-bar-fill.over {
+  background: #a4262c;
+}
+
+.usage-budget-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #605e5c;
+}
+
+.usage-budget-note.over {
+  color: #a4262c;
+  font-weight: 600;
+}
