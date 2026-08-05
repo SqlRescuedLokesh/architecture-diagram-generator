@@ -10,6 +10,14 @@ function slugify(title: string): string {
   );
 }
 
+/** Clamps a computed pptxgenjs shape dimension to a small positive floor. Once the
+ * whole-diagram `scale` gets small enough (very large diagrams), naive `px(x) - padding`
+ * math can go zero/negative - a negative extent is invalid OOXML and makes PowerPoint
+ * refuse to open the file outright rather than offering to repair it. */
+function clampSize(v: number, min = 0.05): number {
+  return Math.max(v, min);
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -109,7 +117,7 @@ export async function downloadPptx(diagram: RenderDiagram) {
     slide.addText(lane.name, {
       x: toX(lane.x) + 0.05,
       y: toY(lane.y),
-      w: px(lane.width) - 0.1,
+      w: clampSize(px(lane.width) - 0.1),
       h: headerH,
       fontSize: 11,
       bold: true,
@@ -133,7 +141,7 @@ export async function downloadPptx(diagram: RenderDiagram) {
     slide.addText(group.name, {
       x: toX(group.x) + 0.05,
       y: toY(group.y),
-      w: px(group.width) - 0.1,
+      w: clampSize(px(group.width) - 0.1),
       h: 0.22,
       fontSize: 9,
       bold: true,
@@ -148,10 +156,16 @@ export async function downloadPptx(diagram: RenderDiagram) {
     addEdgeShapes(pptx, slide, edge, toX, toY);
   }
 
-  // Nodes: icon picture + caption text
+  // Nodes: icon picture + caption text. Icon/caption are sized as a fraction of the
+  // node's own (already-scaled) box - matching DiagramCanvas's fixed-in-diagram-units
+  // icon so it scales in lockstep with node spacing and can never overlap a neighbor,
+  // instead of a fixed inch size that only fits diagrams around the "typical" size.
+  const NODE_CAPTION_GAP = 0.03;
   for (const node of diagram.nodes) {
     const png = await iconToPngDataUrl(node.iconPath);
-    const iconSize = 0.5;
+    const boxH = px(node.height);
+    const iconSize = clampSize(Math.min(boxH * 0.58, px(node.width) * 0.9));
+    const captionH = clampSize(boxH - iconSize - NODE_CAPTION_GAP, 0.04);
     const iconX = toX(node.x) + px(node.width) / 2 - iconSize / 2;
     slide.addImage({
       data: png,
@@ -162,9 +176,9 @@ export async function downloadPptx(diagram: RenderDiagram) {
     });
     slide.addText(node.label, {
       x: toX(node.x),
-      y: toY(node.y) + iconSize + 0.03,
+      y: toY(node.y) + iconSize + NODE_CAPTION_GAP,
       w: px(node.width),
-      h: 0.35,
+      h: captionH,
       fontSize: 8,
       color: COLOR.text,
       fontFace: "Segoe UI",
@@ -210,9 +224,15 @@ export async function downloadPptx(diagram: RenderDiagram) {
       valign: "middle",
       margin: 0,
     });
+    // Same rationale as node icons above: size from the footer band's own scaled
+    // height instead of a fixed inch value, so items never overlap their neighbor
+    // when a large diagram forces a small overall scale.
+    const footerCaptionGap = 0.02;
     for (const item of footer.items) {
       const png = await iconToPngDataUrl(item.iconPath);
-      const iconSize = 0.38;
+      const bandH = px(footer.height);
+      const iconSize = clampSize(bandH * 0.45);
+      const captionH = clampSize(bandH - iconSize - footerCaptionGap, 0.04);
       slide.addImage({
         data: png,
         x: toX(item.x),
@@ -221,10 +241,10 @@ export async function downloadPptx(diagram: RenderDiagram) {
         h: iconSize,
       });
       slide.addText(item.label, {
-        x: toX(item.x) - 0.15,
-        y: toY(item.y) + iconSize + 0.02,
-        w: iconSize + 0.3,
-        h: 0.3,
+        x: toX(item.x) - iconSize * 0.4,
+        y: toY(item.y) + iconSize + footerCaptionGap,
+        w: iconSize * 1.8,
+        h: captionH,
         fontSize: 7,
         color: COLOR.text,
         fontFace: "Segoe UI",
