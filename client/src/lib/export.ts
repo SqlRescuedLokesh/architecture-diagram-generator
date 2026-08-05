@@ -10,14 +10,6 @@ function slugify(title: string): string {
   );
 }
 
-/** Clamps a computed pptxgenjs shape dimension to a small positive floor. Once the
- * whole-diagram `scale` gets small enough (very large diagrams), naive `px(x) - padding`
- * math can go zero/negative - a negative extent is invalid OOXML and makes PowerPoint
- * refuse to open the file outright rather than offering to repair it. */
-function clampSize(v: number, min = 0.05): number {
-  return Math.max(v, min);
-}
-
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -50,12 +42,34 @@ function iconToPngDataUrl(href: string): Promise<string> {
   return cached;
 }
 
-const SLIDE_W = 13.33;
-const SLIDE_H = 7.5;
+// --- Slide sizing ---------------------------------------------------------
+//
+// The slide is sized to the diagram rather than the diagram being crammed onto a
+// fixed 16:9 slide. A big architecture diagram (many lanes/groups) is several
+// thousand layout units wide; forcing that into 13.33in gives ~0.5in nodes whose
+// labels need several inches, and PowerPoint does not clip overflowing text - it
+// spills across neighbouring shapes, which is what made exports look jumbled.
+// So: render at a fixed, legible scale and grow the slide instead, falling back to
+// shrinking only when the diagram exceeds PowerPoint's 56in limit.
+
+const DEFAULT_SLIDE_W = 13.33;
+const DEFAULT_SLIDE_H = 7.5;
+/** PowerPoint refuses slide dimensions larger than 56 inches. */
+const MAX_SLIDE_IN = 56;
 const CONTENT_X = 0.4;
-const CONTENT_Y = 0.9;
-const CONTENT_W = SLIDE_W - CONTENT_X * 2;
-const CONTENT_H = SLIDE_H - CONTENT_Y - 0.3;
+const CONTENT_TOP = 0.9;
+const CONTENT_BOTTOM = 0.3;
+
+/** The scale the point sizes below are chosen for: one 120-unit node ≈ 1.15in wide. */
+const TARGET_SCALE = 0.0096;
+const MIN_FONT_PT = 5;
+const LINE_HEIGHT = 1.2;
+/** Rough average glyph advance for Segoe UI, as a fraction of the em size. Only used
+ * to predict wrapping so text can be shrunk to fit - slightly generous on purpose. */
+const AVG_CHAR_W_EM = 0.52;
+/** layout.ts leaves a 50-unit gap under each node; a caption may borrow 40 of it,
+ * so long labels get room to wrap without ever reaching the node below. */
+const CAPTION_OVERFLOW_UNITS = 40;
 
 const COLOR = {
   text: "201F1E",
@@ -69,27 +83,95 @@ const COLOR = {
   footerCircle: "0078D4",
 };
 
+/** Clamps a computed pptxgenjs shape dimension to a small positive floor. Naive
+ * `px(x) - padding` math can go zero/negative on a heavily scaled-down diagram, and a
+ * negative extent is invalid OOXML - PowerPoint then refuses to open the file outright
+ * rather than offering to repair it. */
+function clampSize(v: number, min = 0.05): number {
+  return Math.max(v, min);
+}
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(Math.max(v, min), max);
+}
+
+export interface ExportMetrics {
+  slideW: number;
+  slideH: number;
+  scale: number;
+  fontScale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+export function computeExportMetrics(diagram: RenderDiagram): ExportMetrics {
+  const w = Math.max(1, diagram.width);
+  const h = Math.max(1, diagram.height);
+
+  const slideW = clamp(CONTENT_X * 2 + w * TARGET_SCALE, DEFAULT_SLIDE_W, MAX_SLIDE_IN);
+  const slideH = clamp(CONTENT_TOP + CONTENT_BOTTOM + h * TARGET_SCALE, DEFAULT_SLIDE_H, MAX_SLIDE_IN);
+
+  const contentW = slideW - CONTENT_X * 2;
+  const contentH = slideH - CONTENT_TOP - CONTENT_BOTTOM;
+  const scale = Math.min(contentW / w, contentH / h);
+
+  // Only ever shrink type: at TARGET_SCALE (or on a small diagram given the minimum
+  // slide, where scale is larger) the base point sizes are already right.
+  const fontScale = Math.min(1, scale / TARGET_SCALE);
+
+  return {
+    slideW,
+    slideH,
+    scale,
+    fontScale,
+    offsetX: CONTENT_X + (contentW - w * scale) / 2,
+    offsetY: CONTENT_TOP + (contentH - h * scale) / 2,
+  };
+}
+
+/** Predicts how many lines `text` wraps to in a box `widthIn` wide at `pt`, honouring
+ * newlines the model put in the label. */
+function wrappedLineCount(text: string, widthIn: number, pt: number): number {
+  const charW = (pt / 72) * AVG_CHAR_W_EM;
+  const perLine = Math.max(1, Math.floor(widthIn / charW));
+  return text
+    .split("\n")
+    .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / perLine)), 0);
+}
+
+/** Largest point size (down to MIN_FONT_PT) at which `text` still fits the box.
+ * PowerPoint does not clip overflow, so anything that does not fit would be drawn
+ * on top of neighbouring shapes. */
+function fitFontSize(text: string, widthIn: number, heightIn: number, basePt: number): number {
+  for (let pt = basePt; pt > MIN_FONT_PT; pt -= 0.5) {
+    if (wrappedLineCount(text, widthIn, pt) * (pt / 72) * LINE_HEIGHT <= heightIn) return pt;
+  }
+  return MIN_FONT_PT;
+}
+
 /** Builds a fully editable PowerPoint (every box, line, text and icon is its own
  * shape/picture) from the diagram's render-ready layout, rather than a flattened image. */
 export async function downloadPptx(diagram: RenderDiagram) {
-  const scale = Math.min(CONTENT_W / diagram.width, CONTENT_H / diagram.height);
-  const offsetX = CONTENT_X + (CONTENT_W - diagram.width * scale) / 2;
-  const offsetY = CONTENT_Y + (CONTENT_H - diagram.height * scale) / 2;
-  const px = (v: number) => v * scale;
-  const toX = (v: number) => offsetX + px(v);
-  const toY = (v: number) => offsetY + px(v);
+  const m = computeExportMetrics(diagram);
+  const px = (v: number) => v * m.scale;
+  const toX = (v: number) => m.offsetX + px(v);
+  const toY = (v: number) => m.offsetY + px(v);
+  /** Base point size adjusted for how far the diagram had to shrink. */
+  const pt = (base: number) => Math.max(MIN_FONT_PT, base * m.fontScale);
 
   const pptx = new pptxgen();
-  pptx.defineLayout({ name: "WIDE", width: SLIDE_W, height: SLIDE_H });
+  pptx.defineLayout({ name: "WIDE", width: m.slideW, height: m.slideH });
   pptx.layout = "WIDE";
   const slide = pptx.addSlide();
 
+  const contentW = m.slideW - CONTENT_X * 2;
+  const titlePt = clamp(20 * Math.sqrt(m.slideW / DEFAULT_SLIDE_W), 20, 40);
   slide.addText(diagram.title, {
     x: CONTENT_X,
     y: 0.25,
-    w: CONTENT_W,
+    w: contentW,
     h: 0.5,
-    fontSize: 20,
+    fontSize: titlePt,
     bold: true,
     color: COLOR.text,
     fontFace: "Segoe UI",
@@ -114,12 +196,13 @@ export async function downloadPptx(diagram: RenderDiagram) {
       fill: { color: COLOR.laneHeaderFill },
       line: { type: "none" },
     });
+    const labelW = clampSize(px(lane.width) - 0.1);
     slide.addText(lane.name, {
       x: toX(lane.x) + 0.05,
       y: toY(lane.y),
-      w: clampSize(px(lane.width) - 0.1),
+      w: labelW,
       h: headerH,
-      fontSize: 11,
+      fontSize: fitFontSize(lane.name, labelW, headerH, pt(11)),
       bold: true,
       color: COLOR.text,
       fontFace: "Segoe UI",
@@ -128,8 +211,11 @@ export async function downloadPptx(diagram: RenderDiagram) {
     });
   }
 
-  // Groups
+  // Groups. A zero-sized group carries no meaning and its label would have nowhere to
+  // wrap, so skip it rather than emit a degenerate box (see sanitizeSpec, which also
+  // drops childless groups upstream).
   for (const group of diagram.groups) {
+    if (group.width <= 0 || group.height <= 0) continue;
     slide.addShape(pptx.ShapeType.rect, {
       x: toX(group.x),
       y: toY(group.y),
@@ -138,12 +224,14 @@ export async function downloadPptx(diagram: RenderDiagram) {
       fill: { color: "FFFFFF", transparency: 100 },
       line: { color: COLOR.groupStroke, width: 0.75, dashType: "dash" },
     });
+    const labelW = clampSize(px(group.width) - 0.1);
+    const labelH = clampSize(Math.min(px(28), px(group.height)), 0.08);
     slide.addText(group.name, {
       x: toX(group.x) + 0.05,
       y: toY(group.y),
-      w: clampSize(px(group.width) - 0.1),
-      h: 0.22,
-      fontSize: 9,
+      w: labelW,
+      h: labelH,
+      fontSize: fitFontSize(group.name, labelW, labelH, pt(9)),
       bold: true,
       color: COLOR.groupText,
       fontFace: "Segoe UI",
@@ -153,33 +241,32 @@ export async function downloadPptx(diagram: RenderDiagram) {
 
   // Edges (drawn as straight segments between consecutive routed points)
   for (const edge of diagram.edges) {
-    addEdgeShapes(pptx, slide, edge, toX, toY);
+    addEdgeShapes(pptx, slide, edge, toX, toY, px, m.fontScale);
   }
 
-  // Nodes: icon picture + caption text. Icon/caption are sized as a fraction of the
-  // node's own (already-scaled) box - matching DiagramCanvas's fixed-in-diagram-units
-  // icon so it scales in lockstep with node spacing and can never overlap a neighbor,
-  // instead of a fixed inch size that only fits diagrams around the "typical" size.
-  const NODE_CAPTION_GAP = 0.03;
+  // Nodes: icon picture + caption text. Both are sized from the node's own scaled box
+  // (like DiagramCanvas sizes its icon in diagram units) so they shrink in lockstep
+  // with node spacing instead of being fixed inches that only suit one diagram size.
+  const captionGap = clampSize(px(4), 0.02);
   for (const node of diagram.nodes) {
     const png = await iconToPngDataUrl(node.iconPath);
+    const boxW = px(node.width);
     const boxH = px(node.height);
-    const iconSize = clampSize(Math.min(boxH * 0.58, px(node.width) * 0.9));
-    const captionH = clampSize(boxH - iconSize - NODE_CAPTION_GAP, 0.04);
-    const iconX = toX(node.x) + px(node.width) / 2 - iconSize / 2;
+    const iconSize = clampSize(Math.min(boxH * 0.58, boxW * 0.9));
+    const captionH = clampSize(boxH - iconSize - captionGap + px(CAPTION_OVERFLOW_UNITS), 0.04);
     slide.addImage({
       data: png,
-      x: iconX,
+      x: toX(node.x) + boxW / 2 - iconSize / 2,
       y: toY(node.y),
       w: iconSize,
       h: iconSize,
     });
     slide.addText(node.label, {
       x: toX(node.x),
-      y: toY(node.y) + iconSize + NODE_CAPTION_GAP,
-      w: px(node.width),
+      y: toY(node.y) + iconSize + captionGap,
+      w: boxW,
       h: captionH,
-      fontSize: 8,
+      fontSize: fitFontSize(node.label, boxW, captionH, pt(8)),
       color: COLOR.text,
       fontFace: "Segoe UI",
       align: "center",
@@ -190,21 +277,24 @@ export async function downloadPptx(diagram: RenderDiagram) {
 
   // Footer bands
   for (const [i, footer] of diagram.footers.entries()) {
+    const bandH = px(footer.height);
     slide.addShape(pptx.ShapeType.rect, {
       x: toX(footer.x),
       y: toY(footer.y),
       w: px(footer.width),
-      h: px(footer.height),
+      h: bandH,
       fill: { color: COLOR.laneFill },
       line: { color: COLOR.laneStroke, width: 0.75 },
     });
+
+    const badge = clampSize(Math.min(bandH * 0.3, px(26)), 0.1);
     slide.addText(String(i + 1), {
       shape: pptx.ShapeType.ellipse,
-      x: toX(footer.x) + 0.08,
-      y: toY(footer.y) + px(footer.height) / 2 - 0.11,
-      w: 0.22,
-      h: 0.22,
-      fontSize: 9,
+      x: toX(footer.x) + badge * 0.35,
+      y: toY(footer.y) + bandH / 2 - badge / 2,
+      w: badge,
+      h: badge,
+      fontSize: Math.max(MIN_FONT_PT, badge * 36),
       bold: true,
       color: "FFFFFF",
       fill: { color: COLOR.footerCircle },
@@ -212,27 +302,29 @@ export async function downloadPptx(diagram: RenderDiagram) {
       valign: "middle",
       margin: 0,
     });
+
+    // The band's name column runs up to wherever layout placed the first item.
+    const nameX = toX(footer.x) + badge * 1.6;
+    const firstItemX = footer.items.length > 0 ? toX(footer.items[0].x) : toX(footer.x + footer.width);
+    const nameW = clampSize(firstItemX - nameX - px(8));
     slide.addText(footer.name, {
-      x: toX(footer.x) + 0.38,
+      x: nameX,
       y: toY(footer.y),
-      w: 1.6,
-      h: px(footer.height),
-      fontSize: 10,
+      w: nameW,
+      h: bandH,
+      fontSize: fitFontSize(footer.name, nameW, bandH, pt(10)),
       bold: true,
       color: COLOR.text,
       fontFace: "Segoe UI",
       valign: "middle",
       margin: 0,
     });
-    // Same rationale as node icons above: size from the footer band's own scaled
-    // height instead of a fixed inch value, so items never overlap their neighbor
-    // when a large diagram forces a small overall scale.
-    const footerCaptionGap = 0.02;
+
     for (const item of footer.items) {
       const png = await iconToPngDataUrl(item.iconPath);
-      const bandH = px(footer.height);
       const iconSize = clampSize(bandH * 0.45);
-      const captionH = clampSize(bandH - iconSize - footerCaptionGap, 0.04);
+      const captionH = clampSize(bandH - iconSize - captionGap, 0.04);
+      const captionW = iconSize * 1.8;
       slide.addImage({
         data: png,
         x: toX(item.x),
@@ -242,10 +334,10 @@ export async function downloadPptx(diagram: RenderDiagram) {
       });
       slide.addText(item.label, {
         x: toX(item.x) - iconSize * 0.4,
-        y: toY(item.y) + iconSize + footerCaptionGap,
-        w: iconSize * 1.8,
+        y: toY(item.y) + iconSize + captionGap,
+        w: captionW,
         h: captionH,
-        fontSize: 7,
+        fontSize: fitFontSize(item.label, captionW, captionH, pt(7)),
         color: COLOR.text,
         fontFace: "Segoe UI",
         align: "center",
@@ -255,18 +347,18 @@ export async function downloadPptx(diagram: RenderDiagram) {
   }
 
   if (diagram.flowSteps.length > 0) {
-    addFlowLegendSlide(pptx, diagram);
+    addFlowLegendSlide(pptx, diagram, contentW);
   }
 
   await pptx.writeFile({ fileName: `${slugify(diagram.title)}.pptx` });
 }
 
-function addFlowLegendSlide(pptx: pptxgen, diagram: RenderDiagram) {
+function addFlowLegendSlide(pptx: pptxgen, diagram: RenderDiagram, contentW: number) {
   const slide = pptx.addSlide();
   slide.addText("How the data flows", {
     x: CONTENT_X,
     y: 0.4,
-    w: CONTENT_W,
+    w: contentW,
     h: 0.5,
     fontSize: 20,
     bold: true,
@@ -292,8 +384,8 @@ function addFlowLegendSlide(pptx: pptxgen, diagram: RenderDiagram) {
   slide.addTable(rows, {
     x: CONTENT_X,
     y: 1.1,
-    w: CONTENT_W,
-    colW: [0.5, CONTENT_W - 0.5],
+    w: contentW,
+    colW: [0.5, contentW - 0.5],
     border: { type: "none" },
     autoPage: true,
     rowH: 0.4,
@@ -307,6 +399,8 @@ function addEdgeShapes(
   edge: RenderEdge,
   toX: (v: number) => number,
   toY: (v: number) => number,
+  px: (v: number) => number,
+  fontScale: number,
 ) {
   const pts = edge.points;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -327,7 +421,7 @@ function addEdgeShapes(
       flipV,
       line: {
         color: COLOR.edge,
-        width: 1.25,
+        width: Math.max(0.5, 1.25 * fontScale),
         endArrowType: isLast ? "triangle" : "none",
       },
     });
@@ -338,13 +432,16 @@ function addEdgeShapes(
     const next = pts[Math.ceil((pts.length - 1) / 2)];
     const cx = toX((mid.x + next.x) / 2);
     const cy = toY((mid.y + next.y) / 2);
+    // Badges scale with the diagram too - a fixed-inch badge dwarfs the nodes once
+    // the diagram is large enough to be scaled down.
+    const badge = clampSize(px(26), 0.1);
     slide.addText(String(edge.order), {
       shape: pptx.ShapeType.ellipse,
-      x: cx - 0.11,
-      y: cy - 0.11,
-      w: 0.22,
-      h: 0.22,
-      fontSize: 8,
+      x: cx - badge / 2,
+      y: cy - badge / 2,
+      w: badge,
+      h: badge,
+      fontSize: Math.max(MIN_FONT_PT, badge * 34),
       bold: true,
       color: "FFFFFF",
       fill: { color: COLOR.badge },

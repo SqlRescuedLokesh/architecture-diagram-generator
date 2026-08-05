@@ -40,7 +40,7 @@ const DIAGRAM_SPEC_JSON_SCHEMA = {
     groups: {
       type: "array",
       description:
-        "Boxed clusters of related nodes, e.g. 'Store' containing Bronze/Silver/Gold. Optionally pinned to a lane via laneId.",
+        "Boxed clusters of related nodes, e.g. 'Store' containing Bronze/Silver/Gold. Optionally pinned to a lane via laneId. Groups CANNOT be nested and every group must directly contain at least one node (via that node's groupId) - to show an outer container spanning several inner clusters, use a lane instead.",
       items: {
         type: "object",
         properties: {
