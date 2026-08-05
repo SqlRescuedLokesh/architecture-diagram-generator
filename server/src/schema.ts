@@ -35,6 +35,9 @@ export const FooterItemSchema = z.object({
 export const FooterSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** Cross-cutting bands (security, governance, platform) read better above the flow;
+   * legends belong underneath it. */
+  position: z.enum(["top", "bottom"]).default("bottom"),
   items: z.array(FooterItemSchema).min(1),
 });
 

@@ -21,9 +21,13 @@ const CANVAS_PADDING = 40;
 const SECTION_GAP = 28;
 
 const FOOTER_ITEM_W = 96;
+/** Nominal icon box both renderers draw at a footer item's (x, y). */
+const FOOTER_ICON_W = 36;
 const FOOTER_ITEM_H = 64;
 const FOOTER_ITEM_GAP = 24;
-const FOOTER_HEADER_W = 170;
+/** Name column of a footer band. Wide enough for real band names ("Platform -
+ * Cross-Cutting Concerns") without the renderers having to shrink them to a sliver. */
+const FOOTER_HEADER_W = 230;
 const FOOTER_BAND_PADDING = 16;
 const FOOTER_BAND_GAP = 14;
 
@@ -184,6 +188,13 @@ function buildElkGraph(spec: DiagramSpec): ElkNode {
       "elk.spacing.nodeNode": String(NODE_SPACING),
       "elk.spacing.componentComponent": String(COMPONENT_SPACING),
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+      // ELK's default placement (BRANDES_KOEPF) balances nodes across the full height of
+      // their layer, which on a wide diagram leaves each lane mostly empty and staggers
+      // content at unrelated vertical offsets. SIMPLE packs each layer from the top, so
+      // lanes read as aligned bands like Microsoft's reference diagrams. On the captured
+      // 9-lane spec this halved canvas height (1610 -> 852) and doubled node density, with
+      // no new overlaps or degenerate edges; small diagrams lay out identically either way.
+      "elk.layered.nodePlacement.strategy": "SIMPLE",
       ...(spec.lanes.length > 0 ? { "elk.partitioning.activate": "true" } : {}),
     },
     children: [...groupChildren, ...looseChildren],
@@ -295,10 +306,33 @@ export async function layoutDiagram(spec: DiagramSpec): Promise<RenderDiagram> {
     ];
   });
 
+  // Square the lanes off to a shared top and bottom. ELK places each lane's members at
+  // whatever vertical offset the layered pass lands on, so the raw bounding boxes are
+  // ragged (heights varying several-fold, tops all over the place) and the diagram reads
+  // as a scatter rather than the aligned columns real Azure reference diagrams use.
+  // Only the lane rectangles move - nodes keep ELK's coordinates so edge routes stay valid.
+  if (rawLanes.length > 1) {
+    const top = Math.min(...rawLanes.map((l) => l.y));
+    const bottom = Math.max(...rawLanes.map((l) => l.y + l.height));
+    for (const lane of rawLanes) {
+      lane.y = top;
+      lane.height = bottom - top;
+    }
+  }
+
+  // Bands declared position:"top" (security, governance) sit above the flow, so the main
+  // diagram has to start below them.
+  const bandHeight = FOOTER_ITEM_H + FOOTER_BAND_PADDING * 2;
+  const topBands = spec.footers.filter((f) => f.position === "top");
+  const topBlockHeight =
+    topBands.length > 0
+      ? topBands.length * bandHeight + (topBands.length - 1) * FOOTER_BAND_GAP + SECTION_GAP
+      : 0;
+
   // Shift everything so the whole diagram starts at (CANVAS_PADDING, CANVAS_PADDING).
   const mainBBox = boundingBox([...rawNodes, ...rawGroups, ...rawLanes]);
   const offsetX = CANVAS_PADDING - mainBBox.minX;
-  const offsetY = CANVAS_PADDING - mainBBox.minY;
+  const offsetY = CANVAS_PADDING + topBlockHeight - mainBBox.minY;
 
   const nodes = rawNodes.map((n) => ({ ...n, x: n.x + offsetX, y: n.y + offsetY }));
   const groups = rawGroups.map((g) => ({ ...g, x: g.x + offsetX, y: g.y + offsetY }));
@@ -350,38 +384,59 @@ export async function layoutDiagram(spec: DiagramSpec): Promise<RenderDiagram> {
     ...lanes.map((l) => l.y + l.height)
   );
 
-  // --- footers: simple horizontal bands stacked below the main diagram ---
+  // --- bands: horizontal strips stacked above ("top") and below the main diagram ---
+  let topY = CANVAS_PADDING;
   let footerY = mainHeight + SECTION_GAP;
-  const footers: RenderFooter[] = spec.footers.map((f) => {
+  const layoutBand = (f: (typeof spec.footers)[number]): RenderFooter => {
+    const count = f.items.length;
+    const bandWidth = Math.max(
+      mainWidth - CANVAS_PADDING * 2,
+      FOOTER_HEADER_W + FOOTER_BAND_PADDING * 2 + count * FOOTER_ITEM_W + (count - 1) * FOOTER_ITEM_GAP
+    );
+    // Spread the items evenly across the band rather than packing them against the
+    // header, which used to leave 50-70% of a full-width band empty on the right.
+    const trackStart = FOOTER_HEADER_W + FOOTER_BAND_PADDING;
+    const slot = (bandWidth - trackStart - FOOTER_BAND_PADDING) / count;
     const items: RenderFooterItem[] = f.items.map((item, idx) => {
       const icon = resolveIcon(item.service);
       return {
         id: item.id,
         label: item.label ?? item.service,
         iconPath: icon.path,
-        x: FOOTER_HEADER_W + FOOTER_BAND_PADDING + idx * (FOOTER_ITEM_W + FOOTER_ITEM_GAP),
+        // x is the icon's left edge; both renderers centre the caption on the icon,
+        // so centring FOOTER_ICON_W in the slot centres the whole item.
+        x: trackStart + slot * (idx + 0.5) - FOOTER_ICON_W / 2,
         y: FOOTER_BAND_PADDING,
       };
     });
-    const bandWidth = Math.max(
-      mainWidth - CANVAS_PADDING * 2,
-      FOOTER_HEADER_W + FOOTER_BAND_PADDING + items.length * (FOOTER_ITEM_W + FOOTER_ITEM_GAP)
-    );
+    const isTop = f.position === "top";
+    const y = isTop ? topY : footerY;
     const band: RenderFooter = {
       id: f.id,
       name: f.name,
       x: CANVAS_PADDING,
-      y: footerY,
+      y,
       width: bandWidth,
-      height: FOOTER_ITEM_H + FOOTER_BAND_PADDING * 2,
-      items: items.map((it) => ({ ...it, x: it.x + CANVAS_PADDING, y: it.y + footerY })),
+      height: bandHeight,
+      items: items.map((it) => ({ ...it, x: it.x + CANVAS_PADDING, y: it.y + y })),
     };
-    footerY += band.height + FOOTER_BAND_GAP;
+    if (isTop) topY += band.height + FOOTER_BAND_GAP;
+    else footerY += band.height + FOOTER_BAND_GAP;
     return band;
+  };
+  // Lay the top bands out first so their running y is correct, but keep the caller's order.
+  const bandByIndex = new Map<number, RenderFooter>();
+  spec.footers.forEach((f, i) => {
+    if (f.position === "top") bandByIndex.set(i, layoutBand(f));
   });
+  spec.footers.forEach((f, i) => {
+    if (f.position !== "top") bandByIndex.set(i, layoutBand(f));
+  });
+  const footers: RenderFooter[] = spec.footers.map((_, i) => bandByIndex.get(i)!);
 
   const totalWidth = Math.max(mainWidth, ...footers.map((f) => f.x + f.width + CANVAS_PADDING));
-  const totalHeight = (footers.length > 0 ? footerY - FOOTER_BAND_GAP : mainHeight) + CANVAS_PADDING;
+  const totalHeight =
+    Math.max(mainHeight, ...footers.map((f) => f.y + f.height)) + CANVAS_PADDING;
 
   return {
     title: spec.title,

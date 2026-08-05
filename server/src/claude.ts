@@ -90,12 +90,18 @@ const DIAGRAM_SPEC_JSON_SCHEMA = {
     footers: {
       type: "array",
       description:
-        "Horizontal capability bands below the main diagram, e.g. 'Discover and govern' (Purview, Unity Catalog) or 'Platform' (Entra ID, Cost Management, Key Vault, Monitor, DevOps). No edges connect to footer items.",
+        "Horizontal capability bands, e.g. 'Discover and govern' (Purview, Unity Catalog) or 'Platform' (Entra ID, Cost Management, Key Vault, Monitor, DevOps). No edges connect to band items - that is the point of a band.",
       items: {
         type: "object",
         properties: {
           id: { type: "string" },
           name: { type: "string" },
+          position: {
+            type: "string",
+            enum: ["top", "bottom"],
+            description:
+              "Where the band sits. Use 'top' for cross-cutting concerns that govern the whole flow (security/identity, auditing & control, governance, monitoring); use 'bottom' for legends and supporting reference material. Defaults to 'bottom'.",
+          },
           items: {
             type: "array",
             items: {
@@ -124,6 +130,8 @@ Given a user's plain-English description of a system, call the ${TOOL_NAME} tool
 - Give edges an "order" (1, 2, 3...) when the diagram tells a sequential story, matching the arrows a reader should follow in order. Every ordered edge MUST have a short, specific "label" describing what actually happens on that step (e.g. "Publishes transaction event", "Routes authenticated request") - these labels become a numbered legend explaining the data flow, so generic labels like "sends data" are not useful.
 - Every node you create MUST be reachable by at least one edge - a node with no edges will render disconnected from the diagram. Cross-cutting concerns with no natural place in the data flow (identity, secrets, observability, cost, CI/CD, governance/cataloging) belong in "footers", never as standalone "nodes".
 - Keep footers for genuinely cross-cutting platform/governance concerns, not primary data-flow nodes.
+- Security/identity (Key Vault, Entra ID/AAD), auditing & control, data quality/validation, lineage and governance are ALWAYS cross-cutting bands with position:"top" - never lanes, never nodes, and never the target of an edge. Drawing arrows from every component to Key Vault or to an audit store buries the actual data flow in noise; the band communicates "this applies throughout" without a single arrow.
+- End the flow with a single consumption lane (name it "Consumption Layer" unless the user asks otherwise) placed after the application/UI stage, holding what people actually consume plus whatever drives it - BI dashboards and reports, downstream apps, and the orchestration that serves them. Do not give BI/reporting a lane of its own.
 - Keep the whole diagram readable: prefer 6-20 nodes for typical prompts.`;
 
 export async function generateDiagramSpec(prompt: string): Promise<DiagramSpec> {

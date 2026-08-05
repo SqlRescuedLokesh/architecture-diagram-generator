@@ -95,6 +95,11 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(Math.max(v, min), max);
 }
 
+/** PowerPoint's elbow-connector preset. pptxgenjs writes the shape name straight into
+ * `<a:prstGeom prst="...">`, but its SHAPE_NAME union only lists closed shapes, so the
+ * cast is what lets us emit a real connector rather than a plain line. */
+const BENT_CONNECTOR = "bentConnector3" as Parameters<pptxgen.Slide["addShape"]>[0];
+
 export interface ExportMetrics {
   slideW: number;
   slideH: number;
@@ -322,9 +327,10 @@ export async function downloadPptx(diagram: RenderDiagram) {
 
     for (const item of footer.items) {
       const png = await iconToPngDataUrl(item.iconPath);
-      const iconSize = clampSize(bandH * 0.45);
+      // 36 units is the icon box layout.ts centres in each item slot (FOOTER_ICON_W).
+      const iconSize = clampSize(px(36));
       const captionH = clampSize(bandH - iconSize - captionGap, 0.04);
-      const captionW = iconSize * 1.8;
+      const captionW = Math.max(iconSize * 1.8, px(96));
       slide.addImage({
         data: png,
         x: toX(item.x),
@@ -333,7 +339,7 @@ export async function downloadPptx(diagram: RenderDiagram) {
         h: iconSize,
       });
       slide.addText(item.label, {
-        x: toX(item.x) - iconSize * 0.4,
+        x: toX(item.x) + iconSize / 2 - captionW / 2,
         y: toY(item.y) + iconSize + captionGap,
         w: captionW,
         h: captionH,
@@ -403,35 +409,39 @@ function addEdgeShapes(
   fontScale: number,
 ) {
   const pts = edge.points;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i];
-    const b = pts[i + 1];
-    const isLast = i === pts.length - 2;
-    const x1 = toX(a.x);
-    const y1 = toY(a.y);
-    const x2 = toX(b.x);
-    const y2 = toY(b.y);
-    const flipV = x2 >= x1 !== y2 >= y1;
+  if (pts.length < 2) return;
 
-    slide.addShape(pptx.ShapeType.line, {
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      w: Math.abs(x2 - x1) || 0.001,
-      h: Math.abs(y2 - y1) || 0.001,
-      flipV,
-      line: {
-        color: COLOR.edge,
-        width: Math.max(0.5, 1.25 * fontScale),
-        endArrowType: isLast ? "triangle" : "none",
-      },
-    });
-  }
+  // One elbow connector per edge, not a shape per routed segment. A polyline exported as
+  // separate segments is a pile of shapes that all have to be dragged together to move an
+  // arrow; "bentConnector3" is a single shape with an endpoint handle at each end and the
+  // yellow handle that slides the bend - the thing people actually expect to grab in
+  // PowerPoint. An empty <a:avLst/> leaves adj1 at its 50% default, so the bend starts at
+  // the midpoint, and the shape stays orthogonal like the routed edge it replaces.
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  const x1 = toX(a.x);
+  const y1 = toY(a.y);
+  const x2 = toX(b.x);
+  const y2 = toY(b.y);
 
-  if (edge.order !== undefined && pts.length > 0) {
-    const mid = pts[Math.floor((pts.length - 1) / 2)];
-    const next = pts[Math.ceil((pts.length - 1) / 2)];
-    const cx = toX((mid.x + next.x) / 2);
-    const cy = toY((mid.y + next.y) / 2);
+  slide.addShape(BENT_CONNECTOR, {
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    w: Math.abs(x2 - x1) || 0.001,
+    h: Math.abs(y2 - y1) || 0.001,
+    // The preset is drawn top-left -> bottom-right; flipping orients it to the real route.
+    flipH: x2 < x1,
+    flipV: y2 < y1,
+    line: {
+      color: COLOR.edge,
+      width: Math.max(0.5, 1.25 * fontScale),
+      endArrowType: "triangle",
+    },
+  });
+
+  if (edge.order !== undefined) {
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
     // Badges scale with the diagram too - a fixed-inch badge dwarfs the nodes once
     // the diagram is large enough to be scaled down.
     const badge = clampSize(px(26), 0.1);
