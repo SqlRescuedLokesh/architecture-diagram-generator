@@ -35,6 +35,9 @@ export const FooterItemSchema = z.object({
 export const FooterSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** Cross-cutting bands (security, governance, platform) read better above the flow;
+   * legends belong underneath it. */
+  position: z.enum(["top", "bottom"]).default("bottom"),
   items: z.array(FooterItemSchema).min(1),
 });
 
@@ -76,14 +79,24 @@ export function sanitizeSpec(spec: DiagramSpec): { spec: DiagramSpec; issues: st
     return node;
   });
 
-  const groups = spec.groups.map((g) => {
-    const group = { ...g };
-    if (group.laneId && !laneIds.has(group.laneId)) {
-      issues.push(`group "${group.id}" references unknown laneId "${group.laneId}"`);
-      delete group.laneId;
-    }
-    return group;
-  });
+  const groups = spec.groups
+    .map((g) => {
+      const group = { ...g };
+      if (group.laneId && !laneIds.has(group.laneId)) {
+        issues.push(`group "${group.id}" references unknown laneId "${group.laneId}"`);
+        delete group.laneId;
+      }
+      return group;
+    })
+    // Groups cannot nest, so a model asked for an outer container ("Azure Platform"
+    // wrapping Ingestion/Snowflake/...) emits a group no node actually belongs to.
+    // ELK sizes a childless compound node as 0x0, which renders as a degenerate box
+    // whose label has nowhere to go and spills across the diagram - so drop them.
+    .filter((g) => {
+      const hasMembers = nodes.some((n) => n.groupId === g.id);
+      if (!hasMembers) issues.push(`group "${g.id}" ("${g.name}") has no member nodes - dropped`);
+      return hasMembers;
+    });
 
   const edges = spec.edges.filter((e) => {
     const ok = nodeIds.has(e.from) && nodeIds.has(e.to);

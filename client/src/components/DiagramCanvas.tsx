@@ -21,20 +21,24 @@ function wrapLabel(label: string, maxCharsPerLine = 16): string[] {
   return lines.slice(0, 2);
 }
 
+/** Draws the same elbow the .pptx export emits (a single "bentConnector3" bending at the
+ * halfway point) rather than ELK's full routed polyline, so the preview matches the deck
+ * the user actually downloads. */
 function edgePath(edge: RenderEdge): string {
-  if (edge.points.length === 0) return "";
-  const [first, ...rest] = edge.points;
-  return (
-    `M ${first.x} ${first.y} ` + rest.map((p) => `L ${p.x} ${p.y}`).join(" ")
-  );
+  const pts = edge.points;
+  if (pts.length === 0) return "";
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  const midX = (a.x + b.x) / 2;
+  return `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`;
 }
 
 function edgeMidpoint(edge: RenderEdge): { x: number; y: number } {
   const pts = edge.points;
   if (pts.length === 0) return { x: 0, y: 0 };
-  const mid = pts[Math.floor((pts.length - 1) / 2)];
-  const next = pts[Math.ceil((pts.length - 1) / 2)];
-  return { x: (mid.x + next.x) / 2, y: (mid.y + next.y) / 2 };
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
 export function DiagramCanvas({ diagram }: { diagram: RenderDiagram }) {
