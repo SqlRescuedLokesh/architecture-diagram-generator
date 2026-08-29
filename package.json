@@ -11,6 +11,7 @@
     "build": "npm run build -w client && npm run build -w server",
     "start": "npm run start -w server",
     "import-icons": "node scripts/import-icons.mjs",
+    "import-vendor-icons": "node scripts/import-vendor-icons.mjs",
     "build-icon-manifest": "node scripts/build-icon-manifest.mjs"
   },
   "devDependencies": {

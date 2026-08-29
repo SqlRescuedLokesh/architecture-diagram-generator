@@ -1,0 +1,27 @@
+{
+  "vendor": "microsoft",
+  "label": "microsoft",
+  "icons": {
+    "power-bi.png": {
+      "name": "Power BI",
+      "aliases": [
+        "PowerBI",
+        "Power BI Service",
+        "Power BI Desktop",
+        "Power BI Reports",
+        "Power BI Dashboards"
+      ]
+    },
+    "azure-data-lake-storage-gen2.png": {
+      "name": "Azure Data Lake Storage Gen2",
+      "aliases": [
+        "Azure Data Lake Storage",
+        "ADLS",
+        "ADLS Gen2",
+        "ADLS Gen 2",
+        "Data Lake Storage",
+        "Azure Data Lake Storage Gen 2"
+      ]
+    }
+  }
+}

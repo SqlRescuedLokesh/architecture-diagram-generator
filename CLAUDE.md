@@ -51,6 +51,20 @@ The whole app is a data pipeline with a strict shape at each hop:
 If you add a field to `RenderDiagram` on the server, add it to `client/src/types/diagram.ts` too — the
 compiler will catch the mismatch if you run `npx tsc --noEmit`.
 
+A node can carry an optional **`badge`**: a second service name, resolved to `badgeIconPath` and drawn
+as a small icon on the top-right corner of the node's icon over a white disc. It exists for "X stored
+on Y" nodes where one icon can't say both things — Delta tables whose storage is ADLS Gen2 are
+`service: "Azure Data Lake Storage Gen2"` + `badge: "Delta Lake"`.
+
+Lanes and groups take a **`badge`** too, drawn in the container's header opposite the name, for a
+capability governing everything inside the box — a "Lakehouse" lane badged with "Unity Catalog" says
+the data in it is Unity Catalog onboarded. Like the top capability bands, a container badge never
+takes an arrow. In `export.ts` the header label's width is reduced by the badge zone, or a long lane
+name runs underneath the icon (PowerPoint does not clip overflowing text).
+
+`BADGE_SCALE`/`BADGE_HALO`/`HEADER_BADGE_SCALE` are duplicated in `DiagramCanvas.tsx` and `export.ts`
+and must stay in lockstep or the deck stops matching the preview.
+
 ## Layout gotchas (hard-won — read before touching `layout.ts`)
 
 - **Lanes are bounding boxes computed AFTER layout**, not elk containers. Making each lane its own elk
@@ -89,8 +103,29 @@ compiler will catch the mismatch if you run `npx tsc --noEmit`.
 
 - Model is configurable: `ANTHROPIC_MODEL` env var, default in `server/src/claude.ts`.
 - Type-check with `npx tsc --noEmit` (per workspace) before running; it catches contract mismatches early.
-- Icons live in `client/public/icons/azure/<category>/`. Re-import from a new pack with
-  `npm run import-icons -- <zip>` then `npm run build-icon-manifest`.
+- Icons live in two roots under `client/public/icons/`:
+  - `azure/<category>/` — the official Microsoft pack. Re-import with `npm run import-icons -- <zip>`
+    (this **wipes** the azure root, which is why vendor icons live elsewhere).
+  - `vendor/<vendor>/` — non-Azure packs (Databricks, Snowflake, SAP, Power BI). Add one with
+    `npm run import-vendor-icons -- --vendor <slug> [--dir <zip-subpath>] [--only a,b] [--name "X"] [--alias "a,b"] <zip-or-image>`.
+    Display names come from the SVG's `<title>`; names + aliases are written to a `meta.json`
+    sidecar in the vendor folder, which the manifest build reads back.
+  Either way, finish with `npm run build-icon-manifest` to regenerate
+  `server/src/data/icon-manifest.json`. Both `.svg` and `.png` sources work.
+- **Short or vendor names need exact matching, not fuzzy.** `resolveIcon` checks a normalized
+  name/alias index before falling back to Fuse; without it "SAP" fuzzy-matches half a dozen
+  Azure-for-SAP services and "Snowflake" matches nothing at all. Azure wins any exact-key or
+  near-tie collision, so adding a vendor pack can never re-point an existing Azure name.
+- **`scripts/icon-aliases.json` covers services the pack names differently or not at all**
+  (Microsoft Purview, Azure Functions, Azure Blob Storage, Entra ID). Add an entry there rather
+  than loosening the fuzzy threshold — a looser threshold silently re-points other names.
+- **A vendor icon can supersede a stale pack icon**: the Azure pack's only Data Lake Storage icon
+  is the Gen1 mark, so the current ADLS Gen2 icon lives in `vendor/microsoft/` and owns the
+  "Azure Data Lake Storage"/"ADLS" names via its aliases. Same pattern for any icon Microsoft
+  refreshes faster than the pack.
+- **Keep aliases specific.** A generic alias steals unrelated names through the fuzzy pass —
+  "Azure Data Lake" on the ADLS icon out-scored "Data Factories" for the query "Azure Data
+  Factory". After editing aliases, re-resolve a spread of Azure names and check nothing moved.
 - **Never put the API key in client code or in chat** — it lives only in `server/.env` (gitignored).
 
 ## Public-facing hardening (already in place)

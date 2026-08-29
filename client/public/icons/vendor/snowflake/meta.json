@@ -1,0 +1,15 @@
+{
+  "vendor": "snowflake",
+  "label": "snowflake",
+  "icons": {
+    "snowflake.svg": {
+      "name": "Snowflake",
+      "aliases": [
+        "Snowflake Data Cloud",
+        "Snowflake Data Warehouse",
+        "Snowflake Warehouse",
+        "Snowflake Database"
+      ]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "vendor": "sap",
+  "label": "sap",
+  "icons": {
+    "sap.png": {
+      "name": "SAP",
+      "aliases": [
+        "SAP ERP",
+        "SAP S/4HANA",
+        "SAP HANA",
+        "SAP ECC",
+        "SAP BW",
+        "SAP Source System",
+        "SAP Application"
+      ]
+    }
+  }
+}

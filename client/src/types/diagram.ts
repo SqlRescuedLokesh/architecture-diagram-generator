@@ -1,6 +1,9 @@
 export interface RenderRect {
   id: string;
   name: string;
+  /** Optional icon drawn in the container's header, marking a capability that covers
+   * everything inside the box (Unity Catalog governing a lakehouse, say). */
+  badgeIconPath?: string;
   x: number;
   y: number;
   width: number;
@@ -11,6 +14,8 @@ export interface RenderNode {
   id: string;
   label: string;
   iconPath: string;
+  /** Optional second icon badged over the corner of iconPath ("Delta tables on ADLS Gen2"). */
+  badgeIconPath?: string;
   x: number;
   y: number;
   width: number;
