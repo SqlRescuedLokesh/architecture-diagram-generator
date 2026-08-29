@@ -1,0 +1,16 @@
+{
+  "vendor": "dbt",
+  "label": "dbt",
+  "icons": {
+    "dbt.png": {
+      "name": "dbt",
+      "aliases": [
+        "dbt Core",
+        "dbt Cloud",
+        "Data Build Tool",
+        "dbt transformations",
+        "dbt models"
+      ]
+    }
+  }
+}

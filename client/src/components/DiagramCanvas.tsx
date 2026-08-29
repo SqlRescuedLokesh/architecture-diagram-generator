@@ -1,6 +1,15 @@
 import type { RenderDiagram, RenderEdge } from "../types/diagram";
 
 const ICON_SIZE = 48;
+// A badge reads as "this thing, on that thing" only if the base icon stays recognisable,
+// so it sits in the top-right corner at just under half size, on a white disc that keeps
+// it legible over whatever the base icon's artwork happens to be there.
+const BADGE_SCALE = 0.46;
+const BADGE_HALO = 1.25;
+// A container badge sits in the header bar opposite the name, sized to the bar so it
+// never bleeds into the box's contents. Right-aligned because names read left-to-right.
+const HEADER_BADGE_SCALE = 0.72;
+const HEADER_BADGE_PAD = 8;
 const LANE_HEADER_H = 32;
 const GROUP_HEADER_H = 26;
 
@@ -101,6 +110,15 @@ export function DiagramCanvas({ diagram }: { diagram: RenderDiagram }) {
           >
             {lane.name}
           </text>
+          {lane.badgeIconPath && (
+            <image
+              href={lane.badgeIconPath}
+              x={lane.x + lane.width - LANE_HEADER_H * HEADER_BADGE_SCALE - HEADER_BADGE_PAD}
+              y={lane.y + (LANE_HEADER_H - LANE_HEADER_H * HEADER_BADGE_SCALE) / 2}
+              width={LANE_HEADER_H * HEADER_BADGE_SCALE}
+              height={LANE_HEADER_H * HEADER_BADGE_SCALE}
+            />
+          )}
         </g>
       ))}
 
@@ -127,6 +145,15 @@ export function DiagramCanvas({ diagram }: { diagram: RenderDiagram }) {
           >
             {group.name}
           </text>
+          {group.badgeIconPath && (
+            <image
+              href={group.badgeIconPath}
+              x={group.x + group.width - GROUP_HEADER_H * HEADER_BADGE_SCALE - HEADER_BADGE_PAD}
+              y={group.y + (GROUP_HEADER_H - GROUP_HEADER_H * HEADER_BADGE_SCALE) / 2}
+              width={GROUP_HEADER_H * HEADER_BADGE_SCALE}
+              height={GROUP_HEADER_H * HEADER_BADGE_SCALE}
+            />
+          )}
         </g>
       ))}
 
@@ -172,6 +199,23 @@ export function DiagramCanvas({ diagram }: { diagram: RenderDiagram }) {
               width={ICON_SIZE}
               height={ICON_SIZE}
             />
+            {node.badgeIconPath && (() => {
+              const size = ICON_SIZE * BADGE_SCALE;
+              const bx = iconX + ICON_SIZE - size;
+              return (
+                <g>
+                  <circle
+                    cx={bx + size / 2}
+                    cy={node.y + size / 2}
+                    r={(size / 2) * BADGE_HALO}
+                    fill="#ffffff"
+                    stroke="#d2d0ce"
+                    strokeWidth={0.75}
+                  />
+                  <image href={node.badgeIconPath} x={bx} y={node.y} width={size} height={size} />
+                </g>
+              );
+            })()}
             {lines.map((line, i) => (
               <text
                 key={i}

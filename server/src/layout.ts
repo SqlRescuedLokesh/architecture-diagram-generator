@@ -34,6 +34,9 @@ const FOOTER_BAND_GAP = 14;
 export interface RenderRect {
   id: string;
   name: string;
+  /** Optional icon drawn in the container's header, marking a capability that covers
+   * everything inside the box (Unity Catalog governing a lakehouse, say). */
+  badgeIconPath?: string;
   x: number;
   y: number;
   width: number;
@@ -44,6 +47,8 @@ export interface RenderNode {
   id: string;
   label: string;
   iconPath: string;
+  /** Optional second icon badged over the corner of iconPath ("Delta tables on ADLS Gen2"). */
+  badgeIconPath?: string;
   x: number;
   y: number;
   width: number;
@@ -264,10 +269,12 @@ export async function layoutDiagram(spec: DiagramSpec): Promise<RenderDiagram> {
   const rawNodes: RenderNode[] = spec.nodes.map((n) => {
     const pos = positions.get(n.id) ?? { x: 0, y: 0, width: NODE_WIDTH, height: NODE_HEIGHT };
     const icon = resolveIcon(n.service);
+    const badge = n.badge ? resolveIcon(n.badge) : undefined;
     return {
       id: n.id,
       label: n.label ?? n.service,
       iconPath: icon.path,
+      ...(badge ? { badgeIconPath: badge.path } : {}),
       x: pos.x,
       y: pos.y,
       width: NODE_WIDTH,
@@ -278,7 +285,18 @@ export async function layoutDiagram(spec: DiagramSpec): Promise<RenderDiagram> {
   // Groups come straight from ELK's own compound-node placement (guaranteed non-overlapping).
   const rawGroups: RenderRect[] = spec.groups.flatMap((g) => {
     const pos = positions.get(g.id);
-    return pos ? [{ id: g.id, name: g.name, x: pos.x, y: pos.y, width: pos.width, height: pos.height }] : [];
+    if (!pos) return [];
+    return [
+      {
+        id: g.id,
+        name: g.name,
+        ...(g.badge ? { badgeIconPath: resolveIcon(g.badge).path } : {}),
+        x: pos.x,
+        y: pos.y,
+        width: pos.width,
+        height: pos.height,
+      },
+    ];
   });
 
   // Lanes are bounding boxes around their member nodes/groups, computed after layout.
@@ -298,6 +316,7 @@ export async function layoutDiagram(spec: DiagramSpec): Promise<RenderDiagram> {
       {
         id: l.id,
         name: l.name,
+        ...(l.badge ? { badgeIconPath: resolveIcon(l.badge).path } : {}),
         x: bbox.minX - LANE_PADDING,
         y: bbox.minY - LANE_PADDING - LANE_HEADER_H,
         width: bbox.maxX - bbox.minX + LANE_PADDING * 2,

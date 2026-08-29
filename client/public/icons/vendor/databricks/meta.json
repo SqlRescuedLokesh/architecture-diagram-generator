@@ -1,0 +1,290 @@
+{
+  "vendor": "databricks",
+  "label": "databricks",
+  "icons": {
+    "attribute-based-access-control.svg": {
+      "name": "Attribute-Based Access Control",
+      "aliases": []
+    },
+    "agent-bricks.svg": {
+      "name": "Agent Bricks",
+      "aliases": []
+    },
+    "ai-bi-dashboards.svg": {
+      "name": "AI/BI Dashboards",
+      "aliases": []
+    },
+    "databricks-ai-bi.svg": {
+      "name": "Databricks AI/BI",
+      "aliases": []
+    },
+    "ai-functions.svg": {
+      "name": "AI Functions",
+      "aliases": []
+    },
+    "databricks-ai-search.svg": {
+      "name": "Databricks AI Search",
+      "aliases": []
+    },
+    "apache-iceberg.svg": {
+      "name": "Apache Iceberg",
+      "aliases": []
+    },
+    "apache-spark.svg": {
+      "name": "Apache Spark",
+      "aliases": []
+    },
+    "databricks-asset-bundles.svg": {
+      "name": "Databricks Asset Bundles",
+      "aliases": []
+    },
+    "auto-loader.svg": {
+      "name": "Auto Loader",
+      "aliases": []
+    },
+    "databricks-automl.svg": {
+      "name": "Databricks AutoML",
+      "aliases": []
+    },
+    "databricks-clean-rooms.svg": {
+      "name": "Databricks Clean Rooms",
+      "aliases": []
+    },
+    "compute-clusters.svg": {
+      "name": "Compute (Clusters)",
+      "aliases": []
+    },
+    "customerlake.svg": {
+      "name": "CustomerLake",
+      "aliases": []
+    },
+    "data-intelligence-platform.svg": {
+      "name": "Data Intelligence Platform",
+      "aliases": []
+    },
+    "data-and-ai-lineage.svg": {
+      "name": "Data & AI Lineage",
+      "aliases": []
+    },
+    "data-quality-monitoring.svg": {
+      "name": "Data Quality Monitoring",
+      "aliases": []
+    },
+    "databricks-lakehouse-data-warehousing.svg": {
+      "name": "Databricks Lakehouse (Data Warehousing)",
+      "aliases": []
+    },
+    "databricks-apps.svg": {
+      "name": "Databricks Apps",
+      "aliases": []
+    },
+    "databricks-cli.svg": {
+      "name": "Databricks CLI",
+      "aliases": []
+    },
+    "databricks-connect.svg": {
+      "name": "Databricks Connect",
+      "aliases": []
+    },
+    "databricks-runtime.svg": {
+      "name": "Databricks Runtime",
+      "aliases": []
+    },
+    "databricks-sql.svg": {
+      "name": "Databricks SQL",
+      "aliases": []
+    },
+    "databricks.svg": {
+      "name": "Databricks",
+      "aliases": []
+    },
+    "delta-lake.svg": {
+      "name": "Delta Lake",
+      "aliases": []
+    },
+    "delta-sharing.svg": {
+      "name": "Delta Sharing",
+      "aliases": []
+    },
+    "document-intelligence.svg": {
+      "name": "Document Intelligence",
+      "aliases": []
+    },
+    "enterprise-security.svg": {
+      "name": "Enterprise Security",
+      "aliases": []
+    },
+    "databricks-feature-store.svg": {
+      "name": "Databricks Feature Store",
+      "aliases": []
+    },
+    "genie-agents.svg": {
+      "name": "Genie Agents",
+      "aliases": []
+    },
+    "genie-code.svg": {
+      "name": "Genie Code",
+      "aliases": []
+    },
+    "genie-deep-research.svg": {
+      "name": "Genie Deep Research",
+      "aliases": []
+    },
+    "genie-one.svg": {
+      "name": "Genie One",
+      "aliases": []
+    },
+    "databricks-genie.svg": {
+      "name": "Databricks Genie",
+      "aliases": []
+    },
+    "git-folders-repos.svg": {
+      "name": "Git Folders (Repos)",
+      "aliases": []
+    },
+    "ide-integrations.svg": {
+      "name": "IDE Integrations",
+      "aliases": []
+    },
+    "lakebase.svg": {
+      "name": "Lakebase",
+      "aliases": []
+    },
+    "lakebridge.svg": {
+      "name": "Lakebridge",
+      "aliases": []
+    },
+    "lakeflow-connect.svg": {
+      "name": "Lakeflow Connect",
+      "aliases": []
+    },
+    "lakeflow-designer.svg": {
+      "name": "Lakeflow Designer",
+      "aliases": []
+    },
+    "lakeflow-jobs.svg": {
+      "name": "Lakeflow Jobs",
+      "aliases": []
+    },
+    "lakeflow.svg": {
+      "name": "Lakeflow",
+      "aliases": []
+    },
+    "lakehouse-federation.svg": {
+      "name": "Lakehouse Federation",
+      "aliases": []
+    },
+    "lakehouse-rt.svg": {
+      "name": "Lakehouse//RT",
+      "aliases": []
+    },
+    "lakehouse-storage-managed-tables.svg": {
+      "name": "Lakehouse Storage (Managed Tables)",
+      "aliases": []
+    },
+    "lakehouse-architecture.svg": {
+      "name": "Lakehouse Architecture",
+      "aliases": []
+    },
+    "lakewatch.svg": {
+      "name": "Lakewatch",
+      "aliases": []
+    },
+    "liquid-clustering.svg": {
+      "name": "Liquid Clustering",
+      "aliases": []
+    },
+    "databricks-marketplace.svg": {
+      "name": "Databricks Marketplace",
+      "aliases": []
+    },
+    "managed-mlflow.svg": {
+      "name": "Managed MLflow",
+      "aliases": []
+    },
+    "databricks-model-serving.svg": {
+      "name": "Databricks Model Serving",
+      "aliases": []
+    },
+    "databricks-model-training.svg": {
+      "name": "Databricks Model Training",
+      "aliases": []
+    },
+    "multicloud-deployment.svg": {
+      "name": "Multicloud Deployment",
+      "aliases": []
+    },
+    "databricks-notebooks.svg": {
+      "name": "Databricks Notebooks",
+      "aliases": []
+    },
+    "opensharing.svg": {
+      "name": "OpenSharing",
+      "aliases": []
+    },
+    "partner-connect.svg": {
+      "name": "Partner Connect",
+      "aliases": []
+    },
+    "photon.svg": {
+      "name": "Photon",
+      "aliases": []
+    },
+    "predictive-optimization.svg": {
+      "name": "Predictive Optimization",
+      "aliases": []
+    },
+    "rest-api-and-sdks.svg": {
+      "name": "REST API & SDKs",
+      "aliases": []
+    },
+    "serverless-compute.svg": {
+      "name": "Serverless Compute",
+      "aliases": []
+    },
+    "apache-spark-declarative-pipelines.svg": {
+      "name": "Apache Spark Declarative Pipelines",
+      "aliases": []
+    },
+    "real-time-mode-for-apache-spark.svg": {
+      "name": "Real-Time Mode for Apache Spark",
+      "aliases": []
+    },
+    "sql-warehouse.svg": {
+      "name": "SQL Warehouse",
+      "aliases": []
+    },
+    "structured-streaming.svg": {
+      "name": "Structured Streaming",
+      "aliases": []
+    },
+    "system-tables.svg": {
+      "name": "System Tables",
+      "aliases": []
+    },
+    "databricks-terraform-provider.svg": {
+      "name": "Databricks Terraform Provider",
+      "aliases": []
+    },
+    "unity-ai-gateway.svg": {
+      "name": "Unity AI Gateway",
+      "aliases": []
+    },
+    "unity-catalog-semantics.svg": {
+      "name": "Unity Catalog Semantics",
+      "aliases": []
+    },
+    "unity-catalog.svg": {
+      "name": "Unity Catalog",
+      "aliases": []
+    },
+    "databricks-workspace.svg": {
+      "name": "Databricks Workspace",
+      "aliases": []
+    },
+    "zerobus-ingest.svg": {
+      "name": "Zerobus Ingest",
+      "aliases": []
+    }
+  }
+}

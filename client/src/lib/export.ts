@@ -20,11 +20,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 const ICON_RASTER_SIZE = 128;
+// Kept in lockstep with the same constants in DiagramCanvas.
+const BADGE_SCALE = 0.46;
+const BADGE_HALO = 1.25;
+const HEADER_BADGE_SCALE = 0.72;
+const HEADER_BADGE_PAD_UNITS = 8;
 const iconPngCache = new Map<string, Promise<string>>();
 
 /** PowerPoint images must be raster data, so each icon is rasterized once (and cached) -
  * loaded as its own top-level <img>, which browsers render fine (unlike an SVG nested
- * inside another SVG that is itself being rasterized). */
+ * inside another SVG that is itself being rasterized).
+ *
+ * The icon is letterboxed into the square, never stretched: vendor logos are not all
+ * square (the SAP logo is 120x66) and DiagramCanvas's <image> preserves their aspect
+ * ratio, so stretching here would make the download differ from the preview. */
 function iconToPngDataUrl(href: string): Promise<string> {
   let cached = iconPngCache.get(href);
   if (!cached) {
@@ -34,7 +43,13 @@ function iconToPngDataUrl(href: string): Promise<string> {
       canvas.height = ICON_RASTER_SIZE;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas not supported.");
-      ctx.drawImage(img, 0, 0, ICON_RASTER_SIZE, ICON_RASTER_SIZE);
+      const ratio =
+        img.naturalWidth > 0 && img.naturalHeight > 0
+          ? img.naturalWidth / img.naturalHeight
+          : 1;
+      const w = ratio >= 1 ? ICON_RASTER_SIZE : ICON_RASTER_SIZE * ratio;
+      const h = ratio >= 1 ? ICON_RASTER_SIZE / ratio : ICON_RASTER_SIZE;
+      ctx.drawImage(img, (ICON_RASTER_SIZE - w) / 2, (ICON_RASTER_SIZE - h) / 2, w, h);
       return canvas.toDataURL("image/png");
     });
     iconPngCache.set(href, cached);
@@ -201,7 +216,9 @@ export async function downloadPptx(diagram: RenderDiagram) {
       fill: { color: COLOR.laneHeaderFill },
       line: { type: "none" },
     });
-    const labelW = clampSize(px(lane.width) - 0.1);
+    const laneBadge = headerH * HEADER_BADGE_SCALE;
+    const laneBadgeZone = lane.badgeIconPath ? laneBadge + px(HEADER_BADGE_PAD_UNITS) * 2 : 0;
+    const labelW = clampSize(px(lane.width) - 0.1 - laneBadgeZone);
     slide.addText(lane.name, {
       x: toX(lane.x) + 0.05,
       y: toY(lane.y),
@@ -214,6 +231,15 @@ export async function downloadPptx(diagram: RenderDiagram) {
       valign: "middle",
       margin: 0,
     });
+    if (lane.badgeIconPath) {
+      slide.addImage({
+        data: await iconToPngDataUrl(lane.badgeIconPath),
+        x: toX(lane.x) + px(lane.width) - laneBadge - px(HEADER_BADGE_PAD_UNITS),
+        y: toY(lane.y) + (headerH - laneBadge) / 2,
+        w: clampSize(laneBadge, 0.02),
+        h: clampSize(laneBadge, 0.02),
+      });
+    }
   }
 
   // Groups. A zero-sized group carries no meaning and its label would have nowhere to
@@ -229,8 +255,10 @@ export async function downloadPptx(diagram: RenderDiagram) {
       fill: { color: "FFFFFF", transparency: 100 },
       line: { color: COLOR.groupStroke, width: 0.75, dashType: "dash" },
     });
-    const labelW = clampSize(px(group.width) - 0.1);
     const labelH = clampSize(Math.min(px(28), px(group.height)), 0.08);
+    const groupBadge = labelH * HEADER_BADGE_SCALE;
+    const groupBadgeZone = group.badgeIconPath ? groupBadge + px(HEADER_BADGE_PAD_UNITS) * 2 : 0;
+    const labelW = clampSize(px(group.width) - 0.1 - groupBadgeZone);
     slide.addText(group.name, {
       x: toX(group.x) + 0.05,
       y: toY(group.y),
@@ -242,6 +270,15 @@ export async function downloadPptx(diagram: RenderDiagram) {
       fontFace: "Segoe UI",
       margin: 0,
     });
+    if (group.badgeIconPath) {
+      slide.addImage({
+        data: await iconToPngDataUrl(group.badgeIconPath),
+        x: toX(group.x) + px(group.width) - groupBadge - px(HEADER_BADGE_PAD_UNITS),
+        y: toY(group.y) + (labelH - groupBadge) / 2,
+        w: clampSize(groupBadge, 0.02),
+        h: clampSize(groupBadge, 0.02),
+      });
+    }
   }
 
   // Edges (drawn as straight segments between consecutive routed points)
@@ -259,13 +296,39 @@ export async function downloadPptx(diagram: RenderDiagram) {
     const boxH = px(node.height);
     const iconSize = clampSize(Math.min(boxH * 0.58, boxW * 0.9));
     const captionH = clampSize(boxH - iconSize - captionGap + px(CAPTION_OVERFLOW_UNITS), 0.04);
+    const iconX = toX(node.x) + boxW / 2 - iconSize / 2;
     slide.addImage({
       data: png,
-      x: toX(node.x) + boxW / 2 - iconSize / 2,
+      x: iconX,
       y: toY(node.y),
       w: iconSize,
       h: iconSize,
     });
+
+    // Badge: a white disc plus the second icon, in the same top-right corner and at the
+    // same fraction of the icon as DiagramCanvas draws it, so preview and deck agree.
+    // Both stay separate shapes so the badge is still editable/removable in PowerPoint.
+    if (node.badgeIconPath) {
+      const badgePng = await iconToPngDataUrl(node.badgeIconPath);
+      const badgeSize = clampSize(iconSize * BADGE_SCALE, 0.02);
+      const badgeX = iconX + iconSize - badgeSize;
+      const halo = clampSize(badgeSize * BADGE_HALO, 0.02);
+      slide.addShape(pptx.ShapeType.ellipse, {
+        x: badgeX - (halo - badgeSize) / 2,
+        y: toY(node.y) - (halo - badgeSize) / 2,
+        w: halo,
+        h: halo,
+        fill: { color: "FFFFFF" },
+        line: { color: COLOR.groupStroke, width: 0.5 },
+      });
+      slide.addImage({
+        data: badgePng,
+        x: badgeX,
+        y: toY(node.y),
+        w: badgeSize,
+        h: badgeSize,
+      });
+    }
     slide.addText(node.label, {
       x: toX(node.x),
       y: toY(node.y) + iconSize + captionGap,

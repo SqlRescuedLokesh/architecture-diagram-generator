@@ -33,6 +33,11 @@ const DIAGRAM_SPEC_JSON_SCHEMA = {
         properties: {
           id: { type: "string" },
           name: { type: "string" },
+          badge: {
+            type: "string",
+            description:
+              "Optional service name badged into this lane's header, for a capability that governs everything inside it, e.g. 'Unity Catalog' on a lakehouse lane to show the data in it is Unity Catalog onboarded.",
+          },
         },
         required: ["id", "name"],
       },
@@ -47,13 +52,18 @@ const DIAGRAM_SPEC_JSON_SCHEMA = {
           id: { type: "string" },
           name: { type: "string" },
           laneId: { type: "string" },
+          badge: {
+            type: "string",
+            description:
+              "Optional service name badged into this group's header, for a capability that governs everything inside it (same idea as a lane badge).",
+          },
         },
         required: ["id", "name"],
       },
     },
     nodes: {
       type: "array",
-      description: "Every Azure resource/service icon shown in the main diagram body.",
+      description: "Every service/product icon shown in the main diagram body.",
       items: {
         type: "object",
         properties: {
@@ -61,7 +71,12 @@ const DIAGRAM_SPEC_JSON_SCHEMA = {
           service: {
             type: "string",
             description:
-              "Plain-English official Azure service name, e.g. 'Azure Databricks', 'Azure Data Lake Storage', 'Power BI'. Used to look up the real icon - do not invent filenames.",
+              "Plain-English official product name, e.g. 'Azure Data Lake Storage', 'Snowflake', 'SAP', 'Power BI', 'Unity Catalog'. Used to look up the real icon - do not invent filenames.",
+          },
+          badge: {
+            type: "string",
+            description:
+              "Optional second product name, drawn as a small badge on the corner of this node's icon. Use it for 'X stored on / running on Y' where both halves matter, e.g. service 'Azure Data Lake Storage Gen2' + badge 'Delta Lake' for Delta tables whose storage is ADLS. Leave empty for ordinary nodes.",
           },
           label: { type: "string", description: "Caption shown under the icon, defaults to service name" },
           groupId: { type: "string" },
@@ -122,10 +137,13 @@ const DIAGRAM_SPEC_JSON_SCHEMA = {
   required: ["title", "nodes"],
 } as const;
 
-const SYSTEM_PROMPT = `You design Azure cloud reference architecture diagrams in the style of Microsoft's official architecture diagrams: grouped swim lanes (e.g. Sources / Process / Serve), boxed clusters within lanes (e.g. a "Store" band with Bronze/Silver/Gold), numbered arrows for sequential data flow, and footer capability bands (e.g. "Discover and govern", "Platform") for cross-cutting concerns like identity, cost management, key vault, monitoring and CI/CD.
+const SYSTEM_PROMPT = `You design cloud data & analytics reference architecture diagrams in the style of Microsoft's official architecture diagrams: grouped swim lanes (e.g. Sources / Process / Serve), boxed clusters within lanes (e.g. a "Store" band with Bronze/Silver/Gold), numbered arrows for sequential data flow, and footer capability bands (e.g. "Discover and govern", "Platform") for cross-cutting concerns like identity, cost management, key vault, monitoring and CI/CD.
 
 Given a user's plain-English description of a system, call the ${TOOL_NAME} tool with a complete diagram spec:
-- Use real, plain-English Azure service names for every "service" field (e.g. "Azure Event Hubs", "Azure Databricks", "Azure Data Lake Storage", "Power BI", "Azure Machine Learning", "Microsoft Purview", "Azure Key Vault"). Non-Azure technologies that are commonly mentioned alongside Azure services (e.g. Apache Spark, Delta Lake, MLflow) are fine to include as nodes too.
+- Use the real, plain-English product name for every "service" field, exactly as the vendor writes it (e.g. "Azure Event Hubs", "Azure Data Lake Storage", "Azure Machine Learning", "Microsoft Purview", "Azure Key Vault"). Never invent filenames - the name is looked up against a real icon library.
+- The icon library is Azure-first but not Azure-only: it also holds the official icons for SAP, Snowflake, Power BI, dbt and the whole Databricks product family (Databricks, Unity Catalog, Delta Lake, Lakeflow Connect, Databricks SQL, Genie, MLflow, Apache Spark, Photon, ...). When the user names a non-Azure product, use it as a node under its own name rather than substituting the nearest Azure equivalent - "SAP", "Snowflake" and "Power BI" are the services the user asked for, not "Azure Center for SAP" or "Azure Synapse Analytics".
+- A catalog or governance layer that covers a whole container belongs on that container, not in the flow: put it in the lane's or group's "badge" (e.g. a "Lakehouse" lane badged with "Unity Catalog" says everything in the lane is Unity Catalog onboarded). This is the container-level version of the top capability bands - still no arrows.
+- When a node is one technology stored on or running on another, show both: put the underlying platform in "service" and the format/engine on top in "badge" (Delta/Iceberg tables in a lake are the classic case - "Azure Data Lake Storage Gen2" badged with "Delta Lake" says the tables are Delta AND the storage is still ADLS, which neither icon says on its own). Do not use a badge as a second unrelated node.
 - Only use lanes when the architecture naturally has a left-to-right stage flow. Small/simple architectures can skip lanes and groups entirely and just use nodes + edges.
 - Give edges an "order" (1, 2, 3...) when the diagram tells a sequential story, matching the arrows a reader should follow in order. Every ordered edge MUST have a short, specific "label" describing what actually happens on that step (e.g. "Publishes transaction event", "Routes authenticated request") - these labels become a numbered legend explaining the data flow, so generic labels like "sends data" are not useful.
 - Every node you create MUST be reachable by at least one edge - a node with no edges will render disconnected from the diagram. Cross-cutting concerns with no natural place in the data flow (identity, secrets, observability, cost, CI/CD, governance/cataloging) belong in "footers", never as standalone "nodes".

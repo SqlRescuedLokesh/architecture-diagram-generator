@@ -1,0 +1,26 @@
+{
+  "_comment": "Extra names for Azure icons whose official product name isn't in the icon pack (icon filename -> names it should also answer to). Applied by build-icon-manifest.mjs; without these these services fall back to the generic 'Cubes' icon or fuzzy-match something unrelated.",
+  "azure/integration/10216-icon-service-Azure-Data-Catalog.svg": [
+    "Microsoft Purview",
+    "Azure Purview",
+    "Purview",
+    "Data Catalog"
+  ],
+  "azure/storage/10086-icon-service-Storage-Accounts.svg": [
+    "Azure Blob Storage",
+    "Blob Storage",
+    "Azure Storage",
+    "Azure Storage Account"
+  ],
+  "azure/compute/10029-icon-service-Function-Apps.svg": [
+    "Azure Functions",
+    "Function App"
+  ],
+  "azure/identity/10231-icon-service-Entra-ID-Protection.svg": [
+    "Microsoft Entra ID",
+    "Entra ID",
+    "Azure Active Directory",
+    "Azure AD",
+    "AAD"
+  ]
+}

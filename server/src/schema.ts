@@ -3,17 +3,25 @@ import { z } from "zod";
 export const LaneSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** Service badged into this container's header - a governance/platform mark that
+   * applies to everything inside it, e.g. Unity Catalog over a lakehouse lane. */
+  badge: z.string().optional(),
 });
 
 export const GroupSchema = z.object({
   id: z.string(),
   name: z.string(),
   laneId: z.string().optional(),
+  badge: z.string().optional(),
 });
 
 export const NodeSchema = z.object({
   id: z.string(),
   service: z.string(),
+  /** A second service drawn as a small badge over the node's icon, for "X on Y"
+   * relationships where both halves matter - Delta tables whose storage is still
+   * ADLS Gen2 is the icon (ADLS) plus the badge (Delta Lake), not one or the other. */
+  badge: z.string().optional(),
   label: z.string().optional(),
   groupId: z.string().optional(),
   laneId: z.string().optional(),
