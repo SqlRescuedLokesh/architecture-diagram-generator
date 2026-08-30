@@ -11,10 +11,19 @@ services:
         value: "22"
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Only needed for identity-linked (personal / service-account) keys,
+      # which must name the workspace they act in. Leave unset for a legacy
+      # workspace key.
+      - key: ANTHROPIC_WORKSPACE_ID
+        sync: false
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-4-6
+      # Sized so MONTHLY_BUDGET_USD - FIXED_MONTHLY_COST_USD equals the Anthropic
+      # credit balance (currently $5), so /api/generate starts returning 429 at
+      # the point the credits would otherwise run out. Raise both together after
+      # topping up; the API allowance is the difference, not this number.
       - key: MONTHLY_BUDGET_USD
-        value: "20"
+        value: "13"
       - key: FIXED_MONTHLY_COST_USD
         value: "8" # ~$7 Render Starter + ~$1/mo amortized domain
       - key: VITE_RAZORPAY_PAYMENT_LINK

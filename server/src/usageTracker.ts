@@ -36,8 +36,19 @@ const DEFAULT_MODEL = "claude-sonnet-4-6";
 // Overall monthly budget for the whole site (hosting/domain + Claude API).
 // FIXED_MONTHLY_COST_USD should reflect your actual hosting+domain spend so
 // the remaining amount is what's left for Claude API calls.
-const MONTHLY_BUDGET_USD = Number(process.env.MONTHLY_BUDGET_USD) || 20;
-const FIXED_MONTHLY_COST_USD = Number(process.env.FIXED_MONTHLY_COST_USD) || 7;
+// `|| fallback` would swallow a deliberate 0 (Number("0") is falsy), which
+// silently turned FIXED_MONTHLY_COST_USD=0 into 7 and drove the API budget
+// negative — clamped to 0, so every request 429'd. Only fall back when the
+// variable is genuinely absent, blank, or not a number.
+function envUsd(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+const MONTHLY_BUDGET_USD = envUsd("MONTHLY_BUDGET_USD", 20);
+const FIXED_MONTHLY_COST_USD = envUsd("FIXED_MONTHLY_COST_USD", 7);
 const API_BUDGET_USD = Math.max(MONTHLY_BUDGET_USD - FIXED_MONTHLY_COST_USD, 0);
 
 /** Tokens and the dollars they actually cost, frozen at the moment they were
