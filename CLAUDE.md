@@ -133,6 +133,18 @@ and must stay in lockstep or the deck stops matching the preview.
 - Per-IP rate limit on `/api/generate` (`server/src/routes/generate.ts`).
 - Monthly cost/budget cap (`server/src/usageTracker.ts`, `/api/usage`) — returns 429 when the API
   budget is exhausted. Budget configured via `MONTHLY_BUDGET_USD` / `FIXED_MONTHLY_COST_USD` env vars.
+- **Usage counters accumulate in a JSON file and are only as durable as that file.** It defaults to
+  `data/usage.json` beside the running code, so dev (`src/`) and a build (`dist/`) keep separate
+  tallies and an ephemeral host resets to zero each deploy — set `USAGE_FILE_PATH` to a mounted
+  volume in production. Writes are temp-file-then-rename (a truncated file reads as "no history" and
+  zeroes the site's all-time figures); an unparseable file is renamed `.corrupt-<ts>` rather than
+  overwritten. `copyAssets.mjs` deliberately skips `usage.json` so a rebuild can't clobber it.
+- **Cost is priced at record time, per model, and never recomputed.** `recordUsage` stores dollars
+  alongside tokens in a per-model and a per-month bucket, so changing `ANTHROPIC_MODEL` can't
+  retroactively rewrite past spend. Add new model ids to `PRICING_PER_MILLION_TOKENS` (exact ids,
+  no date suffixes) — an unlisted model silently falls back to Sonnet 4.6 pricing. Files written
+  before this existed are migrated on load by pricing their history at the configured model, which
+  reproduces the figure they used to report.
 - Optional "Support this website" button wired to a Razorpay link via `VITE_RAZORPAY_PAYMENT_LINK`.
 - In production the server also serves the built client from `client/dist` (single deploy); in dev
   that's skipped and Vite serves the frontend.
