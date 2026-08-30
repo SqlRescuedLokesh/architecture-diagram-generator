@@ -13,7 +13,16 @@ function getClient(): Anthropic {
         "ANTHROPIC_API_KEY is not set. Copy server/.env.example to server/.env and add your key."
       );
     }
-    client = new Anthropic({ apiKey });
+    // Identity-linked keys (personal / service-account) are not bound to a
+    // workspace, so every request must say which workspace it acts in. Legacy
+    // workspace keys carry that implicitly - omit the header for them.
+    const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+    client = new Anthropic({
+      apiKey,
+      ...(workspaceId
+        ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } }
+        : {}),
+    });
   }
   return client;
 }
