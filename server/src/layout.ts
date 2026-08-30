@@ -1,4 +1,5 @@
 import ELK, { type ElkNode, type ElkExtendedEdge } from "elkjs";
+import { flowReversingEdges } from "./schema.js";
 import type { DiagramSpec, DiagramNode, Group } from "./schema.js";
 import { resolveIcon } from "./iconManifest.js";
 
@@ -200,7 +201,14 @@ function buildElkGraph(spec: DiagramSpec): ElkNode {
       // 9-lane spec this halved canvas height (1610 -> 852) and doubled node density, with
       // no new overlaps or degenerate edges; small diagrams lay out identically either way.
       "elk.layered.nodePlacement.strategy": "SIMPLE",
-      ...(spec.lanes.length > 0 ? { "elk.partitioning.activate": "true" } : {}),
+      // Partitioning is what pins each lane to its own column, but it also forces an
+      // edge that runs back into an earlier lane to be drawn reversed. sanitizeSpec
+      // straightens out every such edge it can place with confidence; if any survive,
+      // laying the true flow order out with ragged lane boxes beats shipping arrows
+      // that point the wrong way.
+      ...(spec.lanes.length > 0 && flowReversingEdges(spec).length === 0
+        ? { "elk.partitioning.activate": "true" }
+        : {}),
     },
     children: [...groupChildren, ...looseChildren],
     edges: edgesByContainer.get("root") ?? [],

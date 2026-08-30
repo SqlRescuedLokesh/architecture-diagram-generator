@@ -82,6 +82,13 @@ and must stay in lockstep or the deck stops matching the preview.
   `elk.layered.spacing.nodeNodeBetweenLayers` explicitly on each group, or nodes inside a group cram together.
 - **Declare each edge in its lowest-common-ancestor container** (the shared group, or root). An edge
   between two nodes in the same group, if declared at root, routes to a degenerate ~zero-length segment.
+- **Lane order is a hard constraint on edge direction.** ELK partitions nodes by lane index, so an
+  edge running from a later lane back into an earlier one is drawn as a literally reversed arrow and
+  drags the nodes around it out of order (a "Transformation" lane placed after a Bronze/Silver/Gold
+  group inverted two arrows and rendered the medallion as Gold/Bronze/Silver). `sanitizeSpec` now
+  moves a loose node whose upstream *and* downstream neighbours all sit in one lane into that lane
+  (and their group, if shared); grouped nodes are never moved. If a reversing edge survives that,
+  `layout.ts` drops `elk.partitioning.activate` - ragged lane boxes beat backwards arrows.
 - After any layout change, re-run several varied prompts and check for overlaps and short edges before trusting it.
 
 ## Export gotchas (hard-won — read before touching `export.ts`)
