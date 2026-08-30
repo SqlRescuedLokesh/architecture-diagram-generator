@@ -8,6 +8,13 @@ interface UsageData {
   totalOutputTokens: number;
   pricePerMillionTokens: { input: number; output: number };
   estimatedCostUsd: number;
+  models: Array<{
+    model: string;
+    requests: number;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+  }>;
   budget: {
     monthlyBudgetUsd: number;
     fixedMonthlyCostUsd: number;
@@ -131,10 +138,26 @@ export function UsageStats() {
         )}
       </div>
 
+      {data.models.length > 1 && (
+        <ul className="usage-model-breakdown">
+          {data.models.map((entry) => (
+            <li key={entry.model}>
+              <span>{entry.model}</span>
+              <span>
+                {formatTokens(entry.requests)} {entry.requests === 1 ? "call" : "calls"} ·{" "}
+                {formatCost(entry.costUsd)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <p className="usage-stats-footnote">
-        Tracking since {since} · model: {data.model} · priced at ${data.pricePerMillionTokens.input}/M
-        input, ${data.pricePerMillionTokens.output}/M output tokens. Figures are estimates based on
-        tracked token usage, not a live account balance (Anthropic doesn't expose one via API).
+        Tracking since {since} · current model: {data.model} at ${data.pricePerMillionTokens.input}/M
+        input, ${data.pricePerMillionTokens.output}/M output tokens. Every call is priced at the model
+        that served it and that figure is kept, so switching models doesn't rewrite past spend.
+        Figures are estimates based on tracked token usage, not a live account balance (Anthropic
+        doesn't expose one via API).
       </p>
     </section>
   );

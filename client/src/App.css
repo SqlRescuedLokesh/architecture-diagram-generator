@@ -211,6 +211,22 @@
   font-weight: 600;
 }
 
+.usage-model-breakdown {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid #edebe9;
+  font-size: 12px;
+  color: #605e5c;
+}
+
+.usage-model-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
 .usage-stats-footnote {
   margin: 14px 0 0;
   color: #605e5c;

@@ -13,7 +13,10 @@ const distDataDir = path.join(__dirname, "..", "dist", "data");
 
 fs.mkdirSync(distDataDir, { recursive: true });
 
-const files = fs.readdirSync(srcDataDir);
+// usage.json is live state written by the running server, not a build input.
+// Copying it would reset production's counters to whatever tally the build
+// machine happened to have sitting in src/data.
+const files = fs.readdirSync(srcDataDir).filter((file) => file !== "usage.json");
 for (const file of files) {
   fs.copyFileSync(path.join(srcDataDir, file), path.join(distDataDir, file));
 }
